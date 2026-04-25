@@ -59,6 +59,31 @@
             color: white;
             font-size: 14px;
             margin-bottom: 5px;
+            display: flex;
+            justify-content: space-between;
+            width: 200px;
+        }
+
+        .power-hint {
+            font-size: 12px;
+            opacity: 0;
+            transition: opacity 0.2s;
+        }
+
+        .power-hint.visible {
+            opacity: 1;
+        }
+
+        .power-hint.too-weak {
+            color: #ffcc00;
+        }
+
+        .power-hint.too-strong {
+            color: #ff6b6b;
+        }
+
+        .power-hint.good {
+            color: #4ade80;
         }
 
         .power-bar {
@@ -68,6 +93,7 @@
             border-radius: 15px;
             overflow: hidden;
             border: 2px solid rgba(255, 255, 255, 0.5);
+            position: relative;
         }
 
         .power-fill {
@@ -76,6 +102,28 @@
             background: linear-gradient(90deg, #4facfe 0%, #00f2fe 100%);
             transition: width 0.05s linear;
             border-radius: 15px;
+        }
+
+        .power-fill.too-weak {
+            background: linear-gradient(90deg, #ffd93d 0%, #ffcc00 100%);
+        }
+
+        .power-fill.good {
+            background: linear-gradient(90deg, #4ade80 0%, #22c55e 100%);
+        }
+
+        .power-fill.too-strong {
+            background: linear-gradient(90deg, #ff6b6b 0%, #ee5a5a 100%);
+        }
+
+        .optimal-zone {
+            position: absolute;
+            top: 0;
+            height: 100%;
+            background: rgba(74, 222, 128, 0.3);
+            border-left: 2px dashed rgba(74, 222, 128, 0.8);
+            border-right: 2px dashed rgba(74, 222, 128, 0.8);
+            pointer-events: none;
         }
 
         .game-area {
@@ -101,6 +149,8 @@
             background: linear-gradient(180deg, #ff6b6b 0%, #ee5a5a 100%);
             border-radius: 20px 20px 10px 10px;
             z-index: 10;
+            transform-origin: bottom center;
+            transition: transform 0.1s ease-out;
         }
 
         .player::before {
@@ -123,6 +173,138 @@
             height: 8px;
             background: white;
             border-radius: 50%;
+        }
+
+        .player.charging {
+            animation: chargePulse 0.5s ease-in-out infinite;
+        }
+
+        @keyframes chargePulse {
+            0%, 100% {
+                transform: scaleY(1) scaleX(1);
+                box-shadow: 0 0 10px rgba(255, 107, 107, 0.5);
+            }
+            50% {
+                transform: scaleY(0.85) scaleX(1.15);
+                box-shadow: 0 0 20px rgba(255, 107, 107, 0.8);
+            }
+        }
+
+        .player.landing {
+            animation: landBounce 0.3s ease-out;
+        }
+
+        @keyframes landBounce {
+            0% {
+                transform: scaleY(0.7) scaleX(1.3);
+            }
+            50% {
+                transform: scaleY(1.1) scaleX(0.9);
+            }
+            100% {
+                transform: scaleY(1) scaleX(1);
+            }
+        }
+
+        .player.falling {
+            animation: fallRotate 0.5s ease-in forwards;
+        }
+
+        @keyframes fallRotate {
+            0% {
+                transform: rotate(0deg);
+            }
+            100% {
+                transform: rotate(180deg);
+                opacity: 0;
+            }
+        }
+
+        .landing-effect {
+            position: absolute;
+            width: 60px;
+            height: 20px;
+            background: radial-gradient(ellipse, rgba(74, 222, 128, 0.6) 0%, transparent 70%);
+            border-radius: 50%;
+            z-index: 5;
+            pointer-events: none;
+            animation: landingRipple 0.5s ease-out forwards;
+        }
+
+        @keyframes landingRipple {
+            0% {
+                transform: scale(0.5);
+                opacity: 1;
+            }
+            100% {
+                transform: scale(2);
+                opacity: 0;
+            }
+        }
+
+        .fail-effect {
+            position: absolute;
+            width: 80px;
+            height: 80px;
+            background: radial-gradient(circle, rgba(255, 107, 107, 0.8) 0%, transparent 70%);
+            border-radius: 50%;
+            z-index: 5;
+            pointer-events: none;
+            animation: failExplosion 0.6s ease-out forwards;
+        }
+
+        @keyframes failExplosion {
+            0% {
+                transform: scale(0.3);
+                opacity: 1;
+            }
+            100% {
+                transform: scale(2.5);
+                opacity: 0;
+            }
+        }
+
+        .success-flash {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(74, 222, 128, 0.3);
+            z-index: 50;
+            pointer-events: none;
+            animation: successFlash 0.3s ease-out forwards;
+        }
+
+        @keyframes successFlash {
+            0% {
+                opacity: 1;
+            }
+            100% {
+                opacity: 0;
+            }
+        }
+
+        .jump-trail {
+            position: absolute;
+            width: 30px;
+            height: 30px;
+            background: radial-gradient(circle, rgba(255, 107, 107, 0.6) 0%, transparent 70%);
+            border-radius: 50%;
+            z-index: 5;
+            pointer-events: none;
+            animation: trailFade 0.3s ease-out forwards;
+        }
+
+        @keyframes trailFade {
+            0% {
+                transform: scale(1);
+                opacity: 0.8;
+            }
+            100% {
+                transform: scale(0.5);
+                opacity: 0;
+            }
         }
 
         .grid {
@@ -225,8 +407,12 @@
                 分数: <span class="score-value" id="score">0</span>
             </div>
             <div class="power-bar-container">
-                <div class="power-label">蓄力</div>
+                <div class="power-label">
+                    <span>蓄力</span>
+                    <span class="power-hint" id="powerHint"></span>
+                </div>
                 <div class="power-bar">
+                    <div class="optimal-zone" id="optimalZone"></div>
                     <div class="power-fill" id="powerFill"></div>
                 </div>
             </div>
@@ -255,11 +441,14 @@
             chargeStartTime: 0,
             currentPower: 0,
             maxChargeTime: 2000,
+            chargeDirection: 1,
             grids: [],
             currentGridIndex: 0,
             cameraX: 0,
             playerWorldX: 0,
-            playerWorldY: 0
+            playerWorldY: 0,
+            optimalPowerMin: 0,
+            optimalPowerMax: 0
         };
 
         const config = {
@@ -273,7 +462,9 @@
             maxJumpPower: 20,
             groundY: 400,
             cameraOffsetX: 200,
-            gameAreaWidth: 800
+            gameAreaWidth: 800,
+            landingTolerance: 20,
+            edgeSnapTolerance: 15
         };
 
         const player = document.getElementById('player');
@@ -285,9 +476,102 @@
         const finalScoreDisplay = document.getElementById('finalScore');
         const restartBtn = document.getElementById('restartBtn');
         const instructions = document.getElementById('instructions');
+        const powerHint = document.getElementById('powerHint');
+        const optimalZone = document.getElementById('optimalZone');
 
         function updateWorldTransform() {
             worldContainer.style.transform = `translateX(${-gameState.cameraX}px)`;
+        }
+
+        function calculateOptimalPower() {
+            const currentGrid = gameState.grids[gameState.currentGridIndex];
+            const nextGrid = gameState.grids[gameState.currentGridIndex + 1];
+            
+            if (!currentGrid || !nextGrid) {
+                gameState.optimalPowerMin = 0.3;
+                gameState.optimalPowerMax = 0.7;
+                return;
+            }
+
+            const playerCenterX = gameState.playerWorldX + config.playerWidth / 2;
+            const nextGridCenterX = nextGrid.x + nextGrid.width / 2;
+            const requiredDistance = nextGridCenterX - playerCenterX;
+
+            const powerRange = config.maxJumpPower - config.baseJumpPower;
+            const requiredPower = (requiredDistance / 18 - config.baseJumpPower) / powerRange;
+
+            const tolerance = 0.15;
+            gameState.optimalPowerMin = Math.max(0.1, requiredPower - tolerance);
+            gameState.optimalPowerMax = Math.min(0.95, requiredPower + tolerance);
+        }
+
+        function updateOptimalZoneDisplay() {
+            const leftPercent = gameState.optimalPowerMin * 100;
+            const widthPercent = (gameState.optimalPowerMax - gameState.optimalPowerMin) * 100;
+            
+            optimalZone.style.left = leftPercent + '%';
+            optimalZone.style.width = widthPercent + '%';
+        }
+
+        function updatePowerHint() {
+            powerFill.classList.remove('too-weak', 'good', 'too-strong');
+            powerHint.classList.remove('visible', 'too-weak', 'good', 'too-strong');
+
+            if (!gameState.isCharging) return;
+
+            powerHint.classList.add('visible');
+
+            if (gameState.currentPower < gameState.optimalPowerMin) {
+                powerFill.classList.add('too-weak');
+                powerHint.classList.add('too-weak');
+                powerHint.textContent = '偏近';
+            } else if (gameState.currentPower > gameState.optimalPowerMax) {
+                powerFill.classList.add('too-strong');
+                powerHint.classList.add('too-strong');
+                powerHint.textContent = '偏远';
+            } else {
+                powerFill.classList.add('good');
+                powerHint.classList.add('good');
+                powerHint.textContent = '合适';
+            }
+        }
+
+        function createLandingEffect(x, y) {
+            const effect = document.createElement('div');
+            effect.className = 'landing-effect';
+            effect.style.left = (x - 30) + 'px';
+            effect.style.top = (y - 10) + 'px';
+            worldContainer.appendChild(effect);
+            
+            setTimeout(() => effect.remove(), 500);
+        }
+
+        function createFailEffect(x, y) {
+            const effect = document.createElement('div');
+            effect.className = 'fail-effect';
+            effect.style.left = (x - 40) + 'px';
+            effect.style.top = (y - 40) + 'px';
+            worldContainer.appendChild(effect);
+            
+            setTimeout(() => effect.remove(), 600);
+        }
+
+        function createSuccessFlash() {
+            const flash = document.createElement('div');
+            flash.className = 'success-flash';
+            gameArea.appendChild(flash);
+            
+            setTimeout(() => flash.remove(), 300);
+        }
+
+        function createJumpTrail(x, y) {
+            const trail = document.createElement('div');
+            trail.className = 'jump-trail';
+            trail.style.left = (x + config.playerWidth / 2 - 15) + 'px';
+            trail.style.top = (y + config.playerHeight / 2 - 15) + 'px';
+            worldContainer.appendChild(trail);
+            
+            setTimeout(() => trail.remove(), 300);
         }
 
         function updatePlayerPosition() {
@@ -396,9 +680,15 @@
 
             gameState.isCharging = true;
             gameState.chargeStartTime = Date.now();
+            gameState.chargeDirection = 1;
+            gameState.currentPower = 0;
             instructions.style.display = 'none';
 
-            player.classList.add('jump-animation');
+            calculateOptimalPower();
+            updateOptimalZoneDisplay();
+
+            player.classList.remove('landing');
+            player.classList.add('charging');
             chargeLoop();
         }
 
@@ -406,19 +696,35 @@
             if (!gameState.isCharging) return;
 
             const elapsed = Date.now() - gameState.chargeStartTime;
-            gameState.currentPower = Math.min(elapsed / gameState.maxChargeTime, 1);
-            powerFill.style.width = (gameState.currentPower * 100) + '%';
+            const cycleTime = gameState.maxChargeTime * 2;
+            const cycleProgress = (elapsed % cycleTime) / cycleTime;
 
-            if (gameState.currentPower < 1) {
-                requestAnimationFrame(chargeLoop);
+            if (cycleProgress < 0.5) {
+                gameState.currentPower = cycleProgress * 2;
+            } else {
+                gameState.currentPower = 2 - cycleProgress * 2;
             }
+
+            powerFill.style.width = (gameState.currentPower * 100) + '%';
+            updatePowerHint();
+
+            const compressionScale = 0.85 + gameState.currentPower * 0.15;
+            player.style.transform = `scaleY(${compressionScale}) scaleX(${1 / compressionScale})`;
+
+            requestAnimationFrame(chargeLoop);
         }
 
         function stopCharging() {
             if (!gameState.isCharging || gameState.isJumping || gameState.isGameOver) return;
 
             gameState.isCharging = false;
-            player.classList.remove('jump-animation');
+            player.classList.remove('charging');
+            player.style.transform = 'scaleY(1) scaleX(1)';
+            
+            powerFill.classList.remove('too-weak', 'good', 'too-strong');
+            powerHint.classList.remove('visible', 'too-weak', 'good', 'too-strong');
+            optimalZone.style.left = '0%';
+            optimalZone.style.width = '0%';
 
             const jumpPower = config.baseJumpPower + gameState.currentPower * (config.maxJumpPower - config.baseJumpPower);
             jump(jumpPower);
@@ -437,6 +743,7 @@
             const peakHeight = 80 + jumpPower * 10;
 
             const startTime = Date.now();
+            let lastTrailTime = 0;
 
             function animateJump() {
                 const elapsed = Date.now() - startTime;
@@ -449,9 +756,19 @@
                 gameState.playerWorldY = y;
                 updatePlayerPosition();
 
+                if (elapsed - lastTrailTime > 50) {
+                    createJumpTrail(x, y);
+                    lastTrailTime = elapsed;
+                }
+
+                const jumpProgress = 1 - Math.abs(progress - 0.5) * 2;
+                const stretchScale = 1 + jumpProgress * 0.2;
+                player.style.transform = `scaleY(${stretchScale}) scaleX(${1 / stretchScale})`;
+
                 if (progress < 1) {
                     requestAnimationFrame(animateJump);
                 } else {
+                    player.style.transform = 'scaleY(1) scaleX(1)';
                     checkLanding();
                 }
             }
@@ -466,48 +783,96 @@
                 const playerLeft = gameState.playerWorldX;
                 const playerRight = playerLeft + config.playerWidth;
                 const playerBottom = gameState.playerWorldY + config.playerHeight;
+                const playerCenterX = playerLeft + config.playerWidth / 2;
 
                 const gridLeft = targetGrid.x;
                 const gridRight = gridLeft + targetGrid.width;
                 const gridTop = targetGrid.y;
 
-                const playerCenterX = playerLeft + config.playerWidth / 2;
-                const isCenterOnGrid = (playerCenterX >= gridLeft && playerCenterX <= gridRight);
+                const isVerticalAligned = (playerBottom >= gridTop - config.landingTolerance && 
+                                          playerBottom <= gridTop + config.landingTolerance);
 
-                const isVerticalOnGrid = (playerBottom >= gridTop - 30 && playerBottom <= gridTop + 50);
+                if (isVerticalAligned) {
+                    const playerOnGrid = (playerCenterX >= gridLeft - config.edgeSnapTolerance && 
+                                         playerCenterX <= gridRight + config.edgeSnapTolerance);
 
-                if (isCenterOnGrid && isVerticalOnGrid) {
-                    gameState.playerWorldX = targetGrid.x + targetGrid.width / 2 - config.playerWidth / 2;
+                    if (playerOnGrid) {
+                        let snapX;
+                        
+                        if (playerCenterX < gridLeft) {
+                            snapX = gridLeft + config.playerWidth / 2;
+                        } else if (playerCenterX > gridRight) {
+                            snapX = gridRight - config.playerWidth / 2;
+                        } else {
+                            snapX = targetGrid.x + targetGrid.width / 2;
+                        }
+
+                        gameState.playerWorldX = snapX - config.playerWidth / 2;
+                        gameState.playerWorldY = config.groundY - config.playerHeight;
+                        updatePlayerPosition();
+
+                        createLandingEffect(
+                            gameState.playerWorldX + config.playerWidth / 2,
+                            gameState.playerWorldY + config.playerHeight
+                        );
+                        createSuccessFlash();
+
+                        player.classList.add('landing');
+                        setTimeout(() => player.classList.remove('landing'), 300);
+
+                        gameState.currentGridIndex++;
+                        gameState.score++;
+                        scoreDisplay.textContent = gameState.score;
+
+                        createNextGrid();
+                        updateCamera(true);
+
+                        gameState.isJumping = false;
+                        return;
+                    }
+                }
+            }
+
+            const currentGrid = gameState.grids[gameState.currentGridIndex];
+            if (currentGrid) {
+                const playerCenterX = gameState.playerWorldX + config.playerWidth / 2;
+                const stillOnCurrentGrid = (playerCenterX >= currentGrid.x && 
+                                           playerCenterX <= currentGrid.x + currentGrid.width);
+                
+                if (stillOnCurrentGrid) {
+                    gameState.playerWorldX = currentGrid.x + currentGrid.width / 2 - config.playerWidth / 2;
                     gameState.playerWorldY = config.groundY - config.playerHeight;
                     updatePlayerPosition();
 
-                    gameState.currentGridIndex++;
-                    gameState.score++;
-                    scoreDisplay.textContent = gameState.score;
-
-                    createNextGrid();
-                    updateCamera(true);
+                    player.classList.add('landing');
+                    setTimeout(() => player.classList.remove('landing'), 300);
 
                     gameState.isJumping = false;
-                } else {
-                    gameOver();
+                    return;
                 }
-            } else {
-                gameOver();
             }
+
+            gameOver();
         }
 
         function gameOver() {
             gameState.isGameOver = true;
             gameState.isJumping = false;
 
+            createFailEffect(
+                gameState.playerWorldX + config.playerWidth / 2,
+                gameState.playerWorldY + config.playerHeight
+            );
+
+            player.classList.add('falling');
             gameArea.classList.add('fail-animation');
 
             setTimeout(() => {
                 gameArea.classList.remove('fail-animation');
+                player.classList.remove('falling');
                 finalScoreDisplay.textContent = gameState.score;
                 gameOverlay.classList.remove('hidden');
-            }, 500);
+            }, 600);
         }
 
         document.addEventListener('keydown', (e) => {
