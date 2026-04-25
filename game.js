@@ -245,40 +245,41 @@ function createObstacleForGrid(grid, previousGrid) {
         if (position === 'edge') {
             const edge = Math.random() > 0.5 ? 'left' : 'right';
             if (edge === 'left') {
-                x = grid.x - 20;
-                y = config.groundY - 40;
+                x = grid.x + 5;
+                y = config.groundY - 35;
             } else {
-                x = grid.x + grid.width - 20;
-                y = config.groundY - 40;
+                x = grid.x + grid.width - 45;
+                y = config.groundY - 35;
             }
         } else {
             x = grid.x + grid.width / 2 - 20;
-            y = config.groundY - 40;
+            y = config.groundY - 35;
         }
+        
+        createWarningIndicator(x, y);
     } else if (type === 'bird') {
-        x = previousGrid.x + previousGrid.width - 50;
-        y = config.groundY - 120 - Math.random() * 60;
+        x = gameState.playerWorldX - 300 - Math.random() * 200;
+        y = config.groundY - 100 - Math.random() * 80;
         isMoving = true;
     } else {
-        const positions = ['edge', 'middle', 'air'];
+        const positions = ['edge', 'middle'];
         const position = positions[Math.floor(Math.random() * positions.length)];
         
         if (position === 'edge') {
             const edge = Math.random() > 0.5 ? 'left' : 'right';
             if (edge === 'left') {
-                x = grid.x - 15;
-                y = config.groundY - 40;
+                x = grid.x - 5;
+                y = config.groundY - 35;
             } else {
-                x = grid.x + grid.width - 15;
-                y = config.groundY - 40;
+                x = grid.x + grid.width - 25;
+                y = config.groundY - 35;
             }
-        } else if (position === 'middle') {
-            x = grid.x + grid.width / 2 - 15;
-            y = config.groundY - 40;
         } else {
-            x = previousGrid.x + previousGrid.width + gap / 2 - 15;
-            y = config.groundY - 120 - Math.random() * 60;
+            x = grid.x + grid.width / 2 - 15;
+            y = config.groundY - 35;
         }
+        
+        createWarningIndicator(x, y);
     }
 
     const obstacle = {
@@ -286,42 +287,47 @@ function createObstacleForGrid(grid, previousGrid) {
         type: type,
         x: x,
         y: y,
+        baseY: y,
         width: type === 'bird' ? 50 : (type === 'bomb' ? 40 : 30),
         height: type === 'spike' ? 40 : 40,
         gridX: grid.x,
         isMoving: isMoving,
-        speed: type === 'bird' ? 2 + gameState.difficulty * 0.5 : 0
+        speed: type === 'bird' ? 2.5 + gameState.difficulty * 0.8 : 0,
+        flyPhase: 0
     };
 
-    createWarningIndicator(x, y);
     createObstacleElement(obstacle);
     gameState.obstacles.push(obstacle);
     
     if (isMoving) {
-        startObstacleMovement(obstacle);
+        startBirdMovement(obstacle);
     }
     
     return obstacle;
 }
 
-function startObstacleMovement(obstacle) {
-    function moveObstacle() {
+function startBirdMovement(obstacle) {
+    function moveBird() {
         if (gameState.isGameOver) return;
         
         obstacle.x += obstacle.speed;
+        obstacle.flyPhase += 0.15;
+        obstacle.y = obstacle.baseY + Math.sin(obstacle.flyPhase) * 20;
+        
         if (obstacle.element) {
             obstacle.element.style.left = obstacle.x + 'px';
+            obstacle.element.style.top = obstacle.y + 'px';
         }
         
         const currentGrid = gameState.grids[gameState.currentGridIndex];
-        if (currentGrid && obstacle.x > currentGrid.x + 300) {
+        if (currentGrid && obstacle.x > currentGrid.x + 600) {
             return;
         }
         
-        requestAnimationFrame(moveObstacle);
+        requestAnimationFrame(moveBird);
     }
     
-    moveObstacle();
+    moveBird();
 }
 
 function checkObstacleCollision(jumpX, jumpY) {
