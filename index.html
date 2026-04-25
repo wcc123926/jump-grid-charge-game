@@ -86,6 +86,14 @@
             overflow: hidden;
         }
 
+        .world-container {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+        }
+
         .player {
             position: absolute;
             width: 40px;
@@ -93,7 +101,6 @@
             background: linear-gradient(180deg, #ff6b6b 0%, #ee5a5a 100%);
             border-radius: 20px 20px 10px 10px;
             z-index: 10;
-            transition: none;
         }
 
         .player::before {
@@ -225,7 +232,9 @@
             </div>
         </div>
         <div class="game-area" id="gameArea">
-            <div class="player" id="player"></div>
+            <div class="world-container" id="worldContainer">
+                <div class="player" id="player"></div>
+            </div>
             <div class="game-instructions" id="instructions">
                 按住 <strong>空格</strong> 或 <strong>鼠标左键</strong> 蓄力，松开跳跃
             </div>
@@ -238,7 +247,6 @@
     </div>
 
     <script>
-        // 游戏状态
         const gameState = {
             score: 0,
             isCharging: false,
@@ -248,11 +256,28 @@
             currentPower: 0,
             maxChargeTime: 2000,
             grids: [],
-            currentGridIndex: 0
+            currentGridIndex: 0,
+            cameraX: 0,
+            playerWorldX: 0,
+            playerWorldY: 0
         };
 
-        // DOM元素
+        const config = {
+            gridWidth: 100,
+            gridHeight: 20,
+            playerWidth: 40,
+            playerHeight: 60,
+            minGap: 80,
+            maxGap: 200,
+            baseJumpPower: 8,
+            maxJumpPower: 20,
+            groundY: 400,
+            cameraOffsetX: 200,
+            gameAreaWidth: 800
+        };
+
         const player = document.getElementById('player');
+        const worldContainer = document.getElementById('worldContainer');
         const gameArea = document.getElementById('gameArea');
         const scoreDisplay = document.getElementById('score');
         const powerFill = document.getElementById('powerFill');
@@ -261,52 +286,58 @@
         const restartBtn = document.getElementById('restartBtn');
         const instructions = document.getElementById('instructions');
 
-        // 游戏配置
-        const config = {
-            gridWidth: 100,
-            gridHeight: 20,
-            playerWidth: 40,
-            playerHeight: 60,
-            minGap: 80,
-            maxGap: 200,
-            gravity: 0.5,
-            baseJumpPower: 8,
-            maxJumpPower: 20,
-            groundY: 400
-        };
-
-        // 初始化游戏
-        function initGame() {
-            gameState.score = 0;
-            gameState.isCharging = false;
-            gameState.isJumping = false;
-            gameState.isGameOver = false;
-            gameState.currentPower = 0;
-            gameState.grids = [];
-            gameState.currentGridIndex = 0;
-
-            scoreDisplay.textContent = '0';
-            powerFill.style.width = '0%';
-            gameOverlay.classList.add('hidden');
-
-            // 清除现有格子
-            const grids = document.querySelectorAll('.grid');
-            grids.forEach(grid => grid.remove());
-
-            // 创建初始格子
-            createInitialGrids();
-
-            // 设置玩家初始位置
-            const firstGrid = gameState.grids[0];
-            player.style.left = (firstGrid.x + config.gridWidth / 2 - config.playerWidth / 2) + 'px';
-            player.style.top = (config.groundY - config.playerHeight) + 'px';
+        function updateWorldTransform() {
+            worldContainer.style.transform = `translateX(${-gameState.cameraX}px)`;
         }
 
-        // 创建初始格子
+        function updatePlayerPosition() {
+            player.style.left = gameState.playerWorldX + 'px';
+            player.style.top = gameState.playerWorldY + 'px';
+        }
+
+        function updateCamera(animate = false) {
+            const targetCameraX = gameState.playerWorldX - config.cameraOffsetX;
+            
+            if (animate) {
+                const startCameraX = gameState.cameraX;
+                const distance = targetCameraX - startCameraX;
+                const duration = 300;
+                const startTime = Date.now();
+
+                function animateCamera() {
+                    const elapsed = Date.now() - startTime;
+                    const progress = Math.min(elapsed / duration, 1);
+                    const easeProgress = 1 - Math.pow(1 - progress, 3);
+
+                    gameState.cameraX = startCameraX + distance * easeProgress;
+                    updateWorldTransform();
+
+                    if (progress < 1) {
+                        requestAnimationFrame(animateCamera);
+                    }
+                }
+
+                animateCamera();
+            } else {
+                gameState.cameraX = targetCameraX;
+                updateWorldTransform();
+            }
+        }
+
+        function createGridElement(grid) {
+            const gridElement = document.createElement('div');
+            gridElement.className = 'grid';
+            gridElement.style.left = grid.x + 'px';
+            gridElement.style.top = grid.y + 'px';
+            gridElement.style.width = grid.width + 'px';
+            gridElement.style.height = grid.height + 'px';
+            worldContainer.appendChild(gridElement);
+            grid.element = gridElement;
+        }
+
         function createInitialGrids() {
-            // 第一个格子
             const firstGrid = {
-                x: 100,
+                x: 300,
                 y: config.groundY,
                 width: config.gridWidth,
                 height: config.gridHeight
@@ -314,13 +345,11 @@
             gameState.grids.push(firstGrid);
             createGridElement(firstGrid);
 
-            // 创建几个初始格子
             for (let i = 1; i < 5; i++) {
                 createNextGrid();
             }
         }
 
-        // 创建下一个格子
         function createNextGrid() {
             const lastGrid = gameState.grids[gameState.grids.length - 1];
             const gap = config.minGap + Math.random() * (config.maxGap - config.minGap);
@@ -334,18 +363,34 @@
             createGridElement(newGrid);
         }
 
-        // 创建格子DOM元素
-        function createGridElement(grid) {
-            const gridElement = document.createElement('div');
-            gridElement.className = 'grid';
-            gridElement.style.left = grid.x + 'px';
-            gridElement.style.top = grid.y + 'px';
-            gridElement.style.width = grid.width + 'px';
-            gridElement.style.height = grid.height + 'px';
-            gameArea.appendChild(gridElement);
+        function initGame() {
+            gameState.score = 0;
+            gameState.isCharging = false;
+            gameState.isJumping = false;
+            gameState.isGameOver = false;
+            gameState.currentPower = 0;
+            gameState.cameraX = 0;
+
+            const grids = document.querySelectorAll('.grid');
+            grids.forEach(grid => grid.remove());
+            gameState.grids = [];
+            gameState.currentGridIndex = 0;
+
+            scoreDisplay.textContent = '0';
+            powerFill.style.width = '0%';
+            gameOverlay.classList.add('hidden');
+            instructions.style.display = 'block';
+
+            createInitialGrids();
+
+            const firstGrid = gameState.grids[0];
+            gameState.playerWorldX = firstGrid.x + firstGrid.width / 2 - config.playerWidth / 2;
+            gameState.playerWorldY = config.groundY - config.playerHeight;
+            
+            updatePlayerPosition();
+            updateCamera(false);
         }
 
-        // 开始蓄力
         function startCharging() {
             if (gameState.isJumping || gameState.isGameOver) return;
 
@@ -353,14 +398,10 @@
             gameState.chargeStartTime = Date.now();
             instructions.style.display = 'none';
 
-            // 添加蓄力动画
             player.classList.add('jump-animation');
-
-            // 蓄力动画循环
             chargeLoop();
         }
 
-        // 蓄力循环
         function chargeLoop() {
             if (!gameState.isCharging) return;
 
@@ -373,7 +414,6 @@
             }
         }
 
-        // 停止蓄力并跳跃
         function stopCharging() {
             if (!gameState.isCharging || gameState.isJumping || gameState.isGameOver) return;
 
@@ -381,28 +421,18 @@
             player.classList.remove('jump-animation');
 
             const jumpPower = config.baseJumpPower + gameState.currentPower * (config.maxJumpPower - config.baseJumpPower);
-            const targetGrid = gameState.grids[gameState.currentGridIndex + 1];
-
-            if (targetGrid) {
-                jumpToGrid(targetGrid, jumpPower);
-            }
+            jump(jumpPower);
         }
 
-        // 跳跃到指定格子
-        function jumpToGrid(targetGrid, jumpPower) {
+        function jump(jumpPower) {
             gameState.isJumping = true;
 
-            const playerRect = player.getBoundingClientRect();
-            const gameAreaRect = gameArea.getBoundingClientRect();
+            const startX = gameState.playerWorldX;
+            const startY = gameState.playerWorldY;
 
-            const startX = playerRect.left - gameAreaRect.left;
-            const startY = playerRect.top - gameAreaRect.top;
-
-            // 计算跳跃距离
-            const jumpDistance = jumpPower * 15; // 调整跳跃距离系数
+            const jumpDistance = jumpPower * 18;
             const targetX = startX + jumpDistance;
 
-            // 跳跃动画参数
             const jumpDuration = 600 + jumpPower * 50;
             const peakHeight = 80 + jumpPower * 10;
 
@@ -412,97 +442,65 @@
                 const elapsed = Date.now() - startTime;
                 const progress = Math.min(elapsed / jumpDuration, 1);
 
-                // 抛物线运动
                 const x = startX + jumpDistance * progress;
                 const y = startY - peakHeight * 4 * progress * (1 - progress);
 
-                player.style.left = x + 'px';
-                player.style.top = y + 'px';
+                gameState.playerWorldX = x;
+                gameState.playerWorldY = y;
+                updatePlayerPosition();
 
                 if (progress < 1) {
                     requestAnimationFrame(animateJump);
                 } else {
-                    checkLanding(targetX, y);
+                    checkLanding();
                 }
             }
 
             animateJump();
         }
 
-        // 检查落地
-        function checkLanding(landingX, landingY) {
+        function checkLanding() {
             const targetGrid = gameState.grids[gameState.currentGridIndex + 1];
 
             if (targetGrid) {
-                // 检查是否落在目标格子上
-                const playerLeft = landingX;
+                const playerLeft = gameState.playerWorldX;
                 const playerRight = playerLeft + config.playerWidth;
-                const playerBottom = landingY + config.playerHeight;
+                const playerBottom = gameState.playerWorldY + config.playerHeight;
 
                 const gridLeft = targetGrid.x;
                 const gridRight = gridLeft + targetGrid.width;
                 const gridTop = targetGrid.y;
 
-                // 检查水平方向是否在格子范围内
-                const isHorizontalOnGrid = (playerRight > gridLeft && playerLeft < gridRight);
-                // 检查垂直方向是否接近格子顶部
-                const isVerticalOnGrid = (playerBottom >= gridTop - 20 && playerBottom <= gridTop + 40);
+                const playerCenterX = playerLeft + config.playerWidth / 2;
+                const isCenterOnGrid = (playerCenterX >= gridLeft && playerCenterX <= gridRight);
 
-                if (isHorizontalOnGrid && isVerticalOnGrid) {
-                    // 成功落地
-                    player.style.left = (targetGrid.x + targetGrid.width / 2 - config.playerWidth / 2) + 'px';
-                    player.style.top = (config.groundY - config.playerHeight) + 'px';
+                const isVerticalOnGrid = (playerBottom >= gridTop - 30 && playerBottom <= gridTop + 50);
+
+                if (isCenterOnGrid && isVerticalOnGrid) {
+                    gameState.playerWorldX = targetGrid.x + targetGrid.width / 2 - config.playerWidth / 2;
+                    gameState.playerWorldY = config.groundY - config.playerHeight;
+                    updatePlayerPosition();
 
                     gameState.currentGridIndex++;
                     gameState.score++;
                     scoreDisplay.textContent = gameState.score;
 
-                    // 创建新的格子
                     createNextGrid();
-
-                    // 平滑滚动视口
-                    smoothScrollTo(targetGrid.x - 200);
+                    updateCamera(true);
 
                     gameState.isJumping = false;
                 } else {
-                    // 失败
                     gameOver();
                 }
             } else {
-                // 没有目标格子，失败
                 gameOver();
             }
         }
 
-        // 平滑滚动
-        function smoothScrollTo(targetX) {
-            const gameAreaRect = gameArea.getBoundingClientRect();
-            const currentScrollLeft = gameArea.scrollLeft || 0;
-            const distance = targetX - currentScrollLeft;
-            const duration = 300;
-            const startTime = Date.now();
-
-            function animateScroll() {
-                const elapsed = Date.now() - startTime;
-                const progress = Math.min(elapsed / duration, 1);
-                const easeProgress = 1 - Math.pow(1 - progress, 3); // easeOutCubic
-
-                gameArea.scrollLeft = currentScrollLeft + distance * easeProgress;
-
-                if (progress < 1) {
-                    requestAnimationFrame(animateScroll);
-                }
-            }
-
-            animateScroll();
-        }
-
-        // 游戏结束
         function gameOver() {
             gameState.isGameOver = true;
             gameState.isJumping = false;
 
-            // 失败动画
             gameArea.classList.add('fail-animation');
 
             setTimeout(() => {
@@ -512,7 +510,6 @@
             }, 500);
         }
 
-        // 事件监听
         document.addEventListener('keydown', (e) => {
             if (e.code === 'Space' && !e.repeat) {
                 e.preventDefault();
@@ -539,7 +536,6 @@
             }
         });
 
-        // 触摸设备支持
         gameArea.addEventListener('touchstart', (e) => {
             e.preventDefault();
             startCharging();
@@ -550,12 +546,10 @@
             stopCharging();
         });
 
-        // 重新开始按钮
         restartBtn.addEventListener('click', () => {
             initGame();
         });
 
-        // 初始化游戏
         initGame();
     </script>
 </body>
