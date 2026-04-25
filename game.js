@@ -235,27 +235,50 @@ function createObstacleForGrid(grid, previousGrid) {
     if (Math.random() > getObstacleChance()) return null;
 
     const type = config.obstacleTypes[Math.floor(Math.random() * config.obstacleTypes.length)];
-    const positions = ['edge', 'middle', 'air'];
-    const position = positions[Math.floor(Math.random() * positions.length)];
-    
-    let x, y;
+    let x, y, isMoving = false;
     const gap = grid.x - (previousGrid.x + previousGrid.width);
 
-    if (position === 'edge') {
-        const edge = Math.random() > 0.5 ? 'left' : 'right';
-        if (edge === 'left') {
-            x = grid.x - 15;
-            y = config.groundY - 40;
+    if (type === 'bomb') {
+        const positions = ['edge', 'middle'];
+        const position = positions[Math.floor(Math.random() * positions.length)];
+        
+        if (position === 'edge') {
+            const edge = Math.random() > 0.5 ? 'left' : 'right';
+            if (edge === 'left') {
+                x = grid.x - 20;
+                y = config.groundY - 40;
+            } else {
+                x = grid.x + grid.width - 20;
+                y = config.groundY - 40;
+            }
         } else {
-            x = grid.x + grid.width - 15;
+            x = grid.x + grid.width / 2 - 20;
             y = config.groundY - 40;
         }
-    } else if (position === 'middle') {
-        x = grid.x + grid.width / 2 - 15;
-        y = config.groundY - 40;
-    } else {
-        x = previousGrid.x + previousGrid.width + gap / 2 - 25;
+    } else if (type === 'bird') {
+        x = previousGrid.x + previousGrid.width - 50;
         y = config.groundY - 120 - Math.random() * 60;
+        isMoving = true;
+    } else {
+        const positions = ['edge', 'middle', 'air'];
+        const position = positions[Math.floor(Math.random() * positions.length)];
+        
+        if (position === 'edge') {
+            const edge = Math.random() > 0.5 ? 'left' : 'right';
+            if (edge === 'left') {
+                x = grid.x - 15;
+                y = config.groundY - 40;
+            } else {
+                x = grid.x + grid.width - 15;
+                y = config.groundY - 40;
+            }
+        } else if (position === 'middle') {
+            x = grid.x + grid.width / 2 - 15;
+            y = config.groundY - 40;
+        } else {
+            x = previousGrid.x + previousGrid.width + gap / 2 - 15;
+            y = config.groundY - 120 - Math.random() * 60;
+        }
     }
 
     const obstacle = {
@@ -265,14 +288,40 @@ function createObstacleForGrid(grid, previousGrid) {
         y: y,
         width: type === 'bird' ? 50 : (type === 'bomb' ? 40 : 30),
         height: type === 'spike' ? 40 : 40,
-        gridX: grid.x
+        gridX: grid.x,
+        isMoving: isMoving,
+        speed: type === 'bird' ? 2 + gameState.difficulty * 0.5 : 0
     };
 
     createWarningIndicator(x, y);
     createObstacleElement(obstacle);
     gameState.obstacles.push(obstacle);
     
+    if (isMoving) {
+        startObstacleMovement(obstacle);
+    }
+    
     return obstacle;
+}
+
+function startObstacleMovement(obstacle) {
+    function moveObstacle() {
+        if (gameState.isGameOver) return;
+        
+        obstacle.x += obstacle.speed;
+        if (obstacle.element) {
+            obstacle.element.style.left = obstacle.x + 'px';
+        }
+        
+        const currentGrid = gameState.grids[gameState.currentGridIndex];
+        if (currentGrid && obstacle.x > currentGrid.x + 300) {
+            return;
+        }
+        
+        requestAnimationFrame(moveObstacle);
+    }
+    
+    moveObstacle();
 }
 
 function checkObstacleCollision(jumpX, jumpY) {
