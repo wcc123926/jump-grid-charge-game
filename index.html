@@ -1,0 +1,562 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>跳格子小游戏</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            overflow: hidden;
+        }
+
+        .game-container {
+            width: 100%;
+            max-width: 800px;
+            background: #fff;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            overflow: hidden;
+        }
+
+        .game-header {
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            padding: 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .score-display {
+            color: white;
+            font-size: 24px;
+            font-weight: bold;
+        }
+
+        .score-value {
+            font-size: 36px;
+            margin-left: 10px;
+        }
+
+        .power-bar-container {
+            display: flex;
+            flex-direction: column;
+            align-items: flex-end;
+        }
+
+        .power-label {
+            color: white;
+            font-size: 14px;
+            margin-bottom: 5px;
+        }
+
+        .power-bar {
+            width: 200px;
+            height: 25px;
+            background: rgba(255, 255, 255, 0.3);
+            border-radius: 15px;
+            overflow: hidden;
+            border: 2px solid rgba(255, 255, 255, 0.5);
+        }
+
+        .power-fill {
+            height: 100%;
+            width: 0%;
+            background: linear-gradient(90deg, #4facfe 0%, #00f2fe 100%);
+            transition: width 0.05s linear;
+            border-radius: 15px;
+        }
+
+        .game-area {
+            position: relative;
+            width: 100%;
+            height: 500px;
+            background: linear-gradient(180deg, #e0e5ec 0%, #a8c0ff 100%);
+            overflow: hidden;
+        }
+
+        .player {
+            position: absolute;
+            width: 40px;
+            height: 60px;
+            background: linear-gradient(180deg, #ff6b6b 0%, #ee5a5a 100%);
+            border-radius: 20px 20px 10px 10px;
+            z-index: 10;
+            transition: none;
+        }
+
+        .player::before {
+            content: '';
+            position: absolute;
+            top: 8px;
+            left: 8px;
+            width: 8px;
+            height: 8px;
+            background: white;
+            border-radius: 50%;
+        }
+
+        .player::after {
+            content: '';
+            position: absolute;
+            top: 8px;
+            right: 8px;
+            width: 8px;
+            height: 8px;
+            background: white;
+            border-radius: 50%;
+        }
+
+        .grid {
+            position: absolute;
+            background: linear-gradient(180deg, #4facfe 0%, #00f2fe 100%);
+            border-radius: 10px;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+        }
+
+        .game-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.7);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 100;
+        }
+
+        .game-overlay.hidden {
+            display: none;
+        }
+
+        .overlay-title {
+            color: white;
+            font-size: 48px;
+            font-weight: bold;
+            margin-bottom: 20px;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
+        }
+
+        .overlay-score {
+            color: #ffd700;
+            font-size: 36px;
+            font-weight: bold;
+            margin-bottom: 30px;
+        }
+
+        .restart-btn {
+            padding: 15px 40px;
+            font-size: 24px;
+            font-weight: bold;
+            color: white;
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            border: none;
+            border-radius: 50px;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+            box-shadow: 0 5px 20px rgba(240, 147, 251, 0.4);
+        }
+
+        .restart-btn:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 8px 30px rgba(240, 147, 251, 0.6);
+        }
+
+        .game-instructions {
+            position: absolute;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(255, 255, 255, 0.9);
+            padding: 10px 20px;
+            border-radius: 25px;
+            font-size: 16px;
+            color: #333;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            z-index: 20;
+        }
+
+        .fail-animation {
+            animation: shake 0.5s ease-in-out;
+        }
+
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            25% { transform: translateX(-10px); }
+            75% { transform: translateX(10px); }
+        }
+
+        .jump-animation {
+            animation: squash 0.3s ease-out;
+        }
+
+        @keyframes squash {
+            0% { transform: scaleY(1) scaleX(1); }
+            30% { transform: scaleY(0.8) scaleX(1.2); }
+            100% { transform: scaleY(1) scaleX(1); }
+        }
+    </style>
+</head>
+<body>
+    <div class="game-container">
+        <div class="game-header">
+            <div class="score-display">
+                分数: <span class="score-value" id="score">0</span>
+            </div>
+            <div class="power-bar-container">
+                <div class="power-label">蓄力</div>
+                <div class="power-bar">
+                    <div class="power-fill" id="powerFill"></div>
+                </div>
+            </div>
+        </div>
+        <div class="game-area" id="gameArea">
+            <div class="player" id="player"></div>
+            <div class="game-instructions" id="instructions">
+                按住 <strong>空格</strong> 或 <strong>鼠标左键</strong> 蓄力，松开跳跃
+            </div>
+            <div class="game-overlay hidden" id="gameOverlay">
+                <div class="overlay-title">游戏结束</div>
+                <div class="overlay-score">本局分数: <span id="finalScore">0</span></div>
+                <button class="restart-btn" id="restartBtn">重新开始</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // 游戏状态
+        const gameState = {
+            score: 0,
+            isCharging: false,
+            isJumping: false,
+            isGameOver: false,
+            chargeStartTime: 0,
+            currentPower: 0,
+            maxChargeTime: 2000,
+            grids: [],
+            currentGridIndex: 0
+        };
+
+        // DOM元素
+        const player = document.getElementById('player');
+        const gameArea = document.getElementById('gameArea');
+        const scoreDisplay = document.getElementById('score');
+        const powerFill = document.getElementById('powerFill');
+        const gameOverlay = document.getElementById('gameOverlay');
+        const finalScoreDisplay = document.getElementById('finalScore');
+        const restartBtn = document.getElementById('restartBtn');
+        const instructions = document.getElementById('instructions');
+
+        // 游戏配置
+        const config = {
+            gridWidth: 100,
+            gridHeight: 20,
+            playerWidth: 40,
+            playerHeight: 60,
+            minGap: 80,
+            maxGap: 200,
+            gravity: 0.5,
+            baseJumpPower: 8,
+            maxJumpPower: 20,
+            groundY: 400
+        };
+
+        // 初始化游戏
+        function initGame() {
+            gameState.score = 0;
+            gameState.isCharging = false;
+            gameState.isJumping = false;
+            gameState.isGameOver = false;
+            gameState.currentPower = 0;
+            gameState.grids = [];
+            gameState.currentGridIndex = 0;
+
+            scoreDisplay.textContent = '0';
+            powerFill.style.width = '0%';
+            gameOverlay.classList.add('hidden');
+
+            // 清除现有格子
+            const grids = document.querySelectorAll('.grid');
+            grids.forEach(grid => grid.remove());
+
+            // 创建初始格子
+            createInitialGrids();
+
+            // 设置玩家初始位置
+            const firstGrid = gameState.grids[0];
+            player.style.left = (firstGrid.x + config.gridWidth / 2 - config.playerWidth / 2) + 'px';
+            player.style.top = (config.groundY - config.playerHeight) + 'px';
+        }
+
+        // 创建初始格子
+        function createInitialGrids() {
+            // 第一个格子
+            const firstGrid = {
+                x: 100,
+                y: config.groundY,
+                width: config.gridWidth,
+                height: config.gridHeight
+            };
+            gameState.grids.push(firstGrid);
+            createGridElement(firstGrid);
+
+            // 创建几个初始格子
+            for (let i = 1; i < 5; i++) {
+                createNextGrid();
+            }
+        }
+
+        // 创建下一个格子
+        function createNextGrid() {
+            const lastGrid = gameState.grids[gameState.grids.length - 1];
+            const gap = config.minGap + Math.random() * (config.maxGap - config.minGap);
+            const newGrid = {
+                x: lastGrid.x + lastGrid.width + gap,
+                y: config.groundY,
+                width: config.gridWidth,
+                height: config.gridHeight
+            };
+            gameState.grids.push(newGrid);
+            createGridElement(newGrid);
+        }
+
+        // 创建格子DOM元素
+        function createGridElement(grid) {
+            const gridElement = document.createElement('div');
+            gridElement.className = 'grid';
+            gridElement.style.left = grid.x + 'px';
+            gridElement.style.top = grid.y + 'px';
+            gridElement.style.width = grid.width + 'px';
+            gridElement.style.height = grid.height + 'px';
+            gameArea.appendChild(gridElement);
+        }
+
+        // 开始蓄力
+        function startCharging() {
+            if (gameState.isJumping || gameState.isGameOver) return;
+
+            gameState.isCharging = true;
+            gameState.chargeStartTime = Date.now();
+            instructions.style.display = 'none';
+
+            // 添加蓄力动画
+            player.classList.add('jump-animation');
+
+            // 蓄力动画循环
+            chargeLoop();
+        }
+
+        // 蓄力循环
+        function chargeLoop() {
+            if (!gameState.isCharging) return;
+
+            const elapsed = Date.now() - gameState.chargeStartTime;
+            gameState.currentPower = Math.min(elapsed / gameState.maxChargeTime, 1);
+            powerFill.style.width = (gameState.currentPower * 100) + '%';
+
+            if (gameState.currentPower < 1) {
+                requestAnimationFrame(chargeLoop);
+            }
+        }
+
+        // 停止蓄力并跳跃
+        function stopCharging() {
+            if (!gameState.isCharging || gameState.isJumping || gameState.isGameOver) return;
+
+            gameState.isCharging = false;
+            player.classList.remove('jump-animation');
+
+            const jumpPower = config.baseJumpPower + gameState.currentPower * (config.maxJumpPower - config.baseJumpPower);
+            const targetGrid = gameState.grids[gameState.currentGridIndex + 1];
+
+            if (targetGrid) {
+                jumpToGrid(targetGrid, jumpPower);
+            }
+        }
+
+        // 跳跃到指定格子
+        function jumpToGrid(targetGrid, jumpPower) {
+            gameState.isJumping = true;
+
+            const playerRect = player.getBoundingClientRect();
+            const gameAreaRect = gameArea.getBoundingClientRect();
+
+            const startX = playerRect.left - gameAreaRect.left;
+            const startY = playerRect.top - gameAreaRect.top;
+
+            // 计算跳跃距离
+            const jumpDistance = jumpPower * 15; // 调整跳跃距离系数
+            const targetX = startX + jumpDistance;
+
+            // 跳跃动画参数
+            const jumpDuration = 600 + jumpPower * 50;
+            const peakHeight = 80 + jumpPower * 10;
+
+            const startTime = Date.now();
+
+            function animateJump() {
+                const elapsed = Date.now() - startTime;
+                const progress = Math.min(elapsed / jumpDuration, 1);
+
+                // 抛物线运动
+                const x = startX + jumpDistance * progress;
+                const y = startY - peakHeight * 4 * progress * (1 - progress);
+
+                player.style.left = x + 'px';
+                player.style.top = y + 'px';
+
+                if (progress < 1) {
+                    requestAnimationFrame(animateJump);
+                } else {
+                    checkLanding(targetX, y);
+                }
+            }
+
+            animateJump();
+        }
+
+        // 检查落地
+        function checkLanding(landingX, landingY) {
+            const targetGrid = gameState.grids[gameState.currentGridIndex + 1];
+
+            if (targetGrid) {
+                // 检查是否落在目标格子上
+                const playerLeft = landingX;
+                const playerRight = playerLeft + config.playerWidth;
+                const playerBottom = landingY + config.playerHeight;
+
+                const gridLeft = targetGrid.x;
+                const gridRight = gridLeft + targetGrid.width;
+                const gridTop = targetGrid.y;
+
+                // 检查水平方向是否在格子范围内
+                const isHorizontalOnGrid = (playerRight > gridLeft && playerLeft < gridRight);
+                // 检查垂直方向是否接近格子顶部
+                const isVerticalOnGrid = (playerBottom >= gridTop - 20 && playerBottom <= gridTop + 40);
+
+                if (isHorizontalOnGrid && isVerticalOnGrid) {
+                    // 成功落地
+                    player.style.left = (targetGrid.x + targetGrid.width / 2 - config.playerWidth / 2) + 'px';
+                    player.style.top = (config.groundY - config.playerHeight) + 'px';
+
+                    gameState.currentGridIndex++;
+                    gameState.score++;
+                    scoreDisplay.textContent = gameState.score;
+
+                    // 创建新的格子
+                    createNextGrid();
+
+                    // 平滑滚动视口
+                    smoothScrollTo(targetGrid.x - 200);
+
+                    gameState.isJumping = false;
+                } else {
+                    // 失败
+                    gameOver();
+                }
+            } else {
+                // 没有目标格子，失败
+                gameOver();
+            }
+        }
+
+        // 平滑滚动
+        function smoothScrollTo(targetX) {
+            const gameAreaRect = gameArea.getBoundingClientRect();
+            const currentScrollLeft = gameArea.scrollLeft || 0;
+            const distance = targetX - currentScrollLeft;
+            const duration = 300;
+            const startTime = Date.now();
+
+            function animateScroll() {
+                const elapsed = Date.now() - startTime;
+                const progress = Math.min(elapsed / duration, 1);
+                const easeProgress = 1 - Math.pow(1 - progress, 3); // easeOutCubic
+
+                gameArea.scrollLeft = currentScrollLeft + distance * easeProgress;
+
+                if (progress < 1) {
+                    requestAnimationFrame(animateScroll);
+                }
+            }
+
+            animateScroll();
+        }
+
+        // 游戏结束
+        function gameOver() {
+            gameState.isGameOver = true;
+            gameState.isJumping = false;
+
+            // 失败动画
+            gameArea.classList.add('fail-animation');
+
+            setTimeout(() => {
+                gameArea.classList.remove('fail-animation');
+                finalScoreDisplay.textContent = gameState.score;
+                gameOverlay.classList.remove('hidden');
+            }, 500);
+        }
+
+        // 事件监听
+        document.addEventListener('keydown', (e) => {
+            if (e.code === 'Space' && !e.repeat) {
+                e.preventDefault();
+                startCharging();
+            }
+        });
+
+        document.addEventListener('keyup', (e) => {
+            if (e.code === 'Space') {
+                e.preventDefault();
+                stopCharging();
+            }
+        });
+
+        gameArea.addEventListener('mousedown', (e) => {
+            if (e.button === 0) {
+                startCharging();
+            }
+        });
+
+        document.addEventListener('mouseup', (e) => {
+            if (e.button === 0) {
+                stopCharging();
+            }
+        });
+
+        // 触摸设备支持
+        gameArea.addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            startCharging();
+        });
+
+        document.addEventListener('touchend', (e) => {
+            e.preventDefault();
+            stopCharging();
+        });
+
+        // 重新开始按钮
+        restartBtn.addEventListener('click', () => {
+            initGame();
+        });
+
+        // 初始化游戏
+        initGame();
+    </script>
+</body>
+</html>
